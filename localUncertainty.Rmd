@@ -1,0 +1,680 @@
+---
+title: "Local uncertainty"
+author: "Oskar Randen"
+date: "20 mai 2019"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# !diagnostics off
+
+options(scipen=999)
+```
+
+### Load packages
+
+```{r, echo = T, results = "hide", warning = F, message = F}
+library(httr) # GET, content
+library(tidyverse)
+library(stringdist)
+library(reshape2)
+library(jsonlite)
+library(pxweb) #S tatistics Norway API
+library(zoo) # Linear approximation
+```
+
+
+## Norwegian national library
+
+### Wildcard search
+
+Uncertainty words = "usikkerhet", "uvisse", "uvissa"
+
+```{r}
+rm(list = ls())
+
+startYear <- 2000
+endYear <- 2013
+noYears <- endYear - startYear + 1
+
+# factor: by how many positions wildcards are expanded 
+# limit:  top #limit results,
+# freq_lim: discard results with less than #freq_lim hits
+unc_words <- c("usikkerhet*", "uvisse*", "uvissa*")
+key_list <- c()
+
+for (i in seq_along(unc_words)) {
+querylist =
+  list(
+    word = unc_words[i],
+    corpus = "avis",
+    factor = "20",
+    limit = "1000",
+    freq_lim = "2"
+  )
+query_result = GET(url = "https://api.nb.no/ngram/wildcards", query = querylist)
+key_list = c(key_list, names(content(query_result)))
+}
+
+```
+
+### List of uncertainty words used in the model:
+<button class="btn btn-primary" data-toggle="collapse" data-target="#BlockName"> Show/Hide </button>  
+<div id="BlockName" class="collapse">
+```{r, echo=FALSE}
+sort(key_list)
+```
+</div>
+
+### Wordcounts
+Counts the number of uncertainty words and total words, per month, per newspaper.
+
+```{r eval = F}
+key_list <- c(key_list, tools::toTitleCase(key_list))
+names(key_list) <- rep("word", length(key_list))
+key_list <- lapply(key_list, function(x) URLencode(x, reserved=T))
+key_list <- list(total = list(total = "yes"),
+                uncertainty = key_list)
+
+# Get list of newspapers
+url_nb <- "https://api.nb.no/ngram/ngram"
+querylist   <- list(corpus = "avisnavn", word = "%")
+papers_list <- GET(url = url_nb, query = querylist)
+papers_list <- unlist(content(papers_list))
+
+for (mth in 1:12) {
+
+    for (paper in papers_list) {
+    print(paste0(paper, " (Month: ", mth, ")"))
+      
+    main <- data.frame(year  = 2000:2018,
+                      paper = paper,
+                      month = mth)
+    main[, names(key_list)] = 0
+
+    for (k in 1:length(key_list)) {
+
+      for (i in 1:length(key_list[[k]])) {
+
+        querylist <-
+          c(
+            key_list[[k]][i],
+            list(
+              paper_name = paper,
+              month = mth,
+              corpus = "avis",
+              yearfrom = "2000",
+              yearto = "2018"
+            )
+          )
+        
+        out <- GET(url = url_nb, query = querylist)
+        out <- unlist(content(out))
+
+        if (is.null(out))
+          next()
+
+        newdata <- as.data.frame(t(matrix(out, nrow = 2)))
+        newdata <- aggregate(newdata$V2, list(newdata$V1), FUN = sum)
+        r <- newdata$Group.1 - (2000 - 1)
+        c <- names(key_list[k])
+        main[r, c] <- main[r, c] + newdata$x
+
+      } # keys
+    } # key_list
+    dataset <- bind_rows(main, if (exists("dataset")) dataset)
+    
+  } # mth_list, papers_list
+
+}
+
+saveRDS(dataset, "Data/monthlyData.rds")
+```
+
+### Data cleaning
+```{r}
+database <- readRDS("Data/monthlyData.rds")
+database$paper <- as.character(database$paper)
+names(database)[6] <- "uncertainty"
+
+database$paper <- as.character(database$paper)
+
+database <- database %>% filter(!total == 0)
+
+uniquePapers <- length(unique(database$paper))
+
+# Remove non-Norwegian papers:
+database <- database %>% filter(!paper %in% c("avvir", "upstream", "tradewinds", "recharge", "assu", "minaigi", "ruijankaiku"))
+
+uniquePapers <- c(uniquePapers, length(unique(database$paper)))
+
+# Combines newspapers series that contains the same paper under different names:
+toReplace <- c("dagsavisen", "dagsavisen", "dagsavisen", "bergensavisen", "gudbrandsdoelendagning", "gudbrandsdoelendagning", "gudbrandsdoelendagning", "gudbrandsdoelendagning",
+               "tronderavisa", "dagensnaeringsliv", "smaalenenesavis", "nytid", "samholdvelgeren", "helgelandarbeiderblad", "telemarksavisa", "budstikkaforaskerogb", "dagenmagazinet",
+               "drammenstidende", "drammenstidende", "fiskeribladetfiskare", "tromsfolkeblad", "friheten", "gjengangeren", "hardangerfolkeblad", "lofotposten", 
+               "telemarksavisa", "eidsvollullensakerbl", "hardangerfolkeblad", "avisanordland", "avisanordland", "fiskeribladetfiskare")
+
+toBeReplaced <- c("arbeiderbladetoslo", "arbeiderbladet", "dagsavisenarbeiderbladet", "bergensarbeiderblad", "gudbrandsdolen", "dagningen", "gudbrandsdoelen", "gudbrandsdolendagnin",
+                  "nordtrondelaginntrondelagen", "norgeshandelsogsjoefartstidende", "oevresmaalenene", "orientering", "samholdgjoevik", "helgelandarbeiderbla", "telemarkarbeiderblad", "askerogbaerumsbudstikke", "dagenbergen",
+                  "drammenstidendeogbuskerudblad", "drammenstidendeogbus", "fiskeribladet", "tffolkebladet", "friheten2", "gjengangeren2", "hardangerfolkeblad", "lofotposten2", 
+                  "telemarkarbeiderblad", "eidsvoldblad", "hardanger", "nordlandsframtid", "nordlandsposten", "fiskaren")
+
+replacement <- data.frame(toReplace, toBeReplaced)
+
+for (i in seq_along(toBeReplaced)) {
+database[database$paper == toBeReplaced[i], 3] <- toReplace[i]
+}
+
+uniquePapers <- c(uniquePapers, length(unique(database$paper)))
+
+# Remove papers with only one observation
+oneObs <- database %>% group_by(paper) %>% count() %>% filter(n == 1)
+database <- database %>% filter(!paper %in% oneObs$paper)
+
+uniquePapers <- c(uniquePapers, length(unique(database$paper)))
+
+```
+There are only six newspapers in the database after 2013, so we only use data up until that year.
+```{r}
+database %>% filter(year > 2013) %>% distinct(paper)
+
+database <- database %>% filter(year <= 2013)
+```
+How has the number of unique newspapers in the database been reduced?
+```{r}
+data.frame(operation = c("Original data", "Removed non-Norwegian", "Combined series", "Removed one obs."), uniquePapers)
+```
+
+
+
+## Norwegian Media Businesses' Association
+The data is downloaded from http://www.aviskatalogen.no/jsf/report/index.jsf
+
+### Data cleaning
+```{r}
+coverage <- read.csv("Data/SpredningOgHusstandsdekningKommune_1558367839680.csv",
+                    row.names = NULL, sep = ";", encoding = "ISO 8859-1", 
+                    stringsAsFactors = F)
+
+coverage <- coverage[, -(8:9)]
+
+names(coverage) <- c("paper", "municipality", "municipality.no.", "households", "dekning", "spread", "year")
+
+coverage$paper <- tolower(coverage$paper)
+
+#
+subt <- data.frame(original = c("æ", "ø", "å", "Æ", "Ø", "Å"), repl = c("ae", "o", "aa", "AE", "O", "AA"))
+
+for (i in 1:3) {
+  coverage$paper <- gsub(subt[i, 1], subt[i, 2], coverage$paper)
+}
+
+for (i in 1:6) {
+  coverage$municipality <- gsub(subt[i, 1], subt[i, 2], coverage$municipality)
+}
+
+# Replaces comma with punctuation mark
+coverage$dekning <- gsub(",", ".", coverage$dekning, fixed = T)
+
+# Removes percentage sign
+coverage$dekning <- gsub("%", "", coverage$dekning, fixed = T)
+
+# Removes blank spaces
+coverage$spread <- gsub(" ", "", coverage$spread, fixed = T)
+coverage$households <- gsub(" ", "", coverage$households, fixed = T)
+
+# Converts to numeric
+coverage[, 4] <- as.numeric(coverage[, 4])
+coverage[, 5] <- as.numeric(coverage[, 5])
+coverage[, 6] <- as.numeric(coverage[, 6])
+
+# Subset coverage year
+coverage[, 7] <- substr(coverage[, 7], 1, 4)
+
+coverage$year <- as.numeric(coverage$year)
+
+# Filter year less or equal to 2014:
+coverage <- coverage %>% filter(year <= 2014)
+
+# Add "0" to beginning of munucipality numbers with only 3 digits
+coverage <- coverage %>% mutate(municipality.no. = ifelse(nchar(municipality.no.) == 3, paste0("0", municipality.no.), municipality.no.))
+
+# Remove " " and "-" from paper names
+unwantedChr <- c(" ", "-")
+
+for (i in seq_along(unwantedChr)) {
+coverage$paper <- gsub(unwantedChr[i], "", coverage$paper)
+}
+```
+
+## Exploratory analysis
+
+### Library data
+
+Which paper/month has the most uncertainty words?
+```{r}
+database %>% arrange(desc(uncertainty)) %>% head(n = 5)
+```
+Not suprisingly the time after 9/11 is at the top
+
+Which paper/month has the most uncertainty words per words?
+```{r}
+database %>%
+  mutate(uncertaintyPerWord = uncertainty / total) %>%
+  arrange(desc(uncertaintyPerWord)) %>%
+  head(n = 5)
+```
+
+How many paper/months have no uncertainty words?
+```{r}
+database %>% filter(uncertainty == 0) %>% nrow()
+```
+
+```{r}
+database <- database %>% filter(year >= startYear, year <= endYear)
+
+dateDf <- data.frame(seq(from = as.Date("2000/1/1"), to = as.Date("2013/12/31"), by = "month"), 
+                   rep(seq(from = startYear, to = endYear), each = 12), 
+                   rep(seq(from = 1, to = 12), noYears))
+
+names(dateDf) <- c("date", "year", "month")
+
+database <- inner_join(database, dateDf)
+```
+
+```{r}
+# Total words
+database %>% group_by(date) %>% summarise(total = sum(total)) %>%
+  ggplot(aes(date, total)) +
+  geom_line() +
+  scale_x_date(breaks = as.Date(c("2000-01-01", "2002-01-01", "2004-01-01", "2006-01-01", "2008-01-01", "2010-01-01", "2012-01-01")), date_labels = "%Y") +
+  theme_classic()
+
+# Unique newspapers
+database %>% filter(!total == 0) %>% group_by(date) %>% distinct(paper) %>% count() %>%
+  ggplot(aes(date, n)) +
+  geom_line() +
+  scale_x_date(breaks = as.Date(c("2000-01-01", "2002-01-01", "2004-01-01", "2006-01-01", "2008-01-01", "2010-01-01", "2012-01-01")), date_labels = "%Y") +
+  theme_classic()
+```
+
+
+
+### Circulation data
+
+Total circulation per year:
+```{r}
+coverage %>% group_by(year) %>% summarise(spread = sum(spread)) %>%
+ggplot(aes(year, spread)) +
+  geom_line() +
+  theme_classic()
+```
+
+```{r}
+coverage %>% group_by(year) %>% distinct(paper) %>% count() %>%
+ggplot(aes(year, n)) +
+  geom_line() +
+  theme_classic()
+```
+
+## Match newspaper names using string distance
+A bit messy, but it seems like the best way. Some have to be manually matched at the end.
+
+```{r}
+# Match papers that have the exact same name.
+papersCoverage <- data.frame(paper = tolower(unique(coverage$paper)), stringsAsFactors = FALSE)
+                             
+papersDatabase <- data.frame(paper = unique(database$paper), stringsAsFactors = FALSE)
+
+matchedPapers <- inner_join(papersCoverage, papersDatabase)
+matchedPapers <- data.frame(s1name = matchedPapers$paper, s2name = matchedPapers$paper, stringsAsFactors = FALSE)
+
+papersCoverage <- papersCoverage %>% filter(!paper %in% matchedPapers$s1name)
+papersDatabase <- papersDatabase %>% filter(!paper %in% matchedPapers$s1name)
+
+# Match using a variety of string distance measurements
+emptyVector1 <- c(rep(0, length(papersDatabase$paper)))
+paperNames <- data.frame(papersDatabase$paper, emptyVector1, stringsAsFactors = F)
+names(paperNames) <- "name"
+
+emptyVector2 <- c(rep(0, length(papersCoverage$paper)))
+namesDekning <- data.frame(papersCoverage$paper, emptyVector2, stringsAsFactors = F)
+names(namesDekning)[1] <- "name"
+
+#distance.methods<-'jw'
+distance.methods<-c('osa','lv','dl','lcs','qgram','cosine','jaccard','jw')
+dist.methods<-list()
+for (m in 1:length(distance.methods)) {
+  dist.name.enh<-matrix(NA, ncol = length(paperNames$name), nrow = length(namesDekning$name))
+  for (i in 1:length(paperNames$name)) {
+    for (j in 1:length(namesDekning$name)) { 
+      dist.name.enh[j, i] <- stringdist(tolower(paperNames[i, ]$name), 
+                                        tolower(namesDekning[j, ]$name), method = distance.methods[m])      
+      #adist.enhance(paperNames[i,]$name,namesDekning[j,]$name)
+    }  
+  }
+  dist.methods[[distance.methods[m]]] <- dist.name.enh
+}
+
+match.s1.s2.enh <- NULL
+for (m in 1:length(dist.methods)) {
+  dist.matrix <- as.matrix(dist.methods[[distance.methods[m]]])
+  min.name.enh <- apply(dist.matrix, 1, base::min)
+  for (i in 1:nrow(dist.matrix)) {
+    s2.i <- match(min.name.enh[i], dist.matrix[i, ])
+    s1.i <- i
+    match.s1.s2.enh <- rbind(data.frame(s2.i = s2.i, s1.i = s1.i, s2name = paperNames[s2.i, ]$name,
+                                        s1name = namesDekning[s1.i, ]$name, adist = min.name.enh[i],
+                                        method = distance.methods[m], stringsAsFactors = FALSE), match.s1.s2.enh)
+  }
+}
+
+# Results from stringdist matching
+matched.names.matrix <- dcast(match.s1.s2.enh, s2.i + s1.i + s2name + s1name ~ method, value.var = "adist")
+matched.names.matrix <- matched.names.matrix %>% arrange(jw)
+
+# Extract matches based on limiting values set for each string distance measure
+matched2 <- matched.names.matrix %>% 
+  filter(jw <= 0.13 |
+           jaccard <= 0.08 |
+           cosine <= 0.072 |
+           lcs <= 3 |
+           dl <= 2 |
+           lv <= 2 |
+           osa <= 2) %>%
+  select(s2name, s1name)
+
+matchedPapers <- rbind(matchedPapers, matched2)
+
+matched.names.matrix <- matched.names.matrix %>%
+  filter(!s2name %in% matched2$s2name | !s1name %in% matched.names.matrix$s1name)
+
+# Manually pick out the last matching papers.
+matchedPapers <- rbind(matchedPapers, matched.names.matrix[c(1, 3, 5, 8, 11, 13, 76), c(3, 4)])
+```
+
+```{r}
+coverage <- matchedPapers %>% rename(paper = s1name) %>% left_join(coverage) %>% select(-s2name)
+database <- matchedPapers %>% rename(paper = s2name) %>% left_join(database) %>% select(-paper) %>% rename(paper = s1name)
+
+```
+
+### Add counties
+```{r}
+counties <- data.frame(county = c("Akershus", "Aust-Agder", "Buskerud", "Finnmark - Finnm?rku", "Hedmark", "Hordaland", "M?re og Romsdal", "Nordland", "Oppland",  "Oslo", "Rogaland", "Sogn og Fjordane", "Telemark", "Troms - Romsa", "Tr?ndelag", "Vest-Agder", "Vestfold", "?stfold", "Tr?ndelag", "Tr?ndelag"), from = c(0200, 0900, 0600, 2000, 0400, 1200, 1500, 1800, 0500, 0300, 1100, 1400, 0800, 1900, 5000, 1000, 700, 0100, 01600, 01700), stringsAsFactors = F)
+
+coverage$municipality.no. <- as.numeric(coverage$municipality.no.)
+
+coverageNumbers <- coverage %>% distinct(municipality.no.)
+
+z <- character(nrow(coverageNumbers))
+
+for (j in 1:nrow(coverageNumbers)){
+   for (i in 1:nrow(counties)){
+    if((coverageNumbers[j, 1] > counties[i, 2]) & (coverageNumbers[j, 1] < counties[i, 2] + 99)) {
+    z[j] <- counties[i, 1]
+    }
+  }
+}
+
+coverageNumbers$county <- z
+
+coverage <- inner_join(coverage, coverageNumbers, by = "municipality.no.")
+```
+
+### Tile graph
+```{r}
+possiblePapers <- tibble(paper = rep(rep(unique(database$paper)), each = 12*(noYears)), 
+                         date = rep(seq(from = as.Date("2000/1/1"), to = as.Date("2013/12/31"), by = "month"), length(unique(database$paper))))
+
+
+papersPerMonth <- database %>%
+  group_by(date, paper) %>% 
+  summarise(count = n()) %>% 
+  mutate(data = 1)
+  
+tileData <- right_join(papersPerMonth, possiblePapers)
+
+tileData[is.na(tileData)] <- 0
+
+tileData <- inner_join(tileData, papersPerMonth %>% group_by(paper) %>% summarise(noOfMonths = sum(data)) %>% ungroup())
+
+tileData <- tileData %>% arrange(noOfMonths)
+
+tileData$paper <- factor(tileData$paper, levels = (unique(tileData$paper)))
+
+graphData <- tileData %>% #filter(year %in% 2000:2007) %>%
+  ggplot(aes(date, paper)) +
+  scale_y_discrete(expand=c(0,0)) +
+  scale_x_date(expand = c(0,0), date_breaks = "1 year", date_labels = "%Y") +
+  geom_tile(aes(fill = data, color = data), size = 1, show.legend = FALSE) +
+  theme(axis.title.x=element_blank(),
+        axis.title.y=element_blank())
+```
+
+```{r graphData, out.width = "100%", fig.asp = 2.6}
+graphData
+```
+
+
+### Split the dataset:
+
+```{r}
+dataMonths2000 <- database %>%
+  filter(year %in% 2000:2007) %>%
+  distinct(paper, date) %>%
+  group_by(paper) %>%
+  count(name = "freq") %>%
+  arrange(desc(freq)) %>%
+  ungroup() %>%
+  filter(freq * 100 / max(freq) > 80) # Select papers with < 20% missing data
+
+dataMonths2008 <- database %>%
+  filter(year %in% 2008:2011) %>%
+  distinct(paper, date) %>%
+  group_by(paper) %>%
+  count(name = "freq") %>%
+  arrange(desc(freq)) %>%
+  ungroup() %>%
+  filter(freq * 100 / max(freq) > 80) # Select papers with < 20% missing data
+
+database <- rbind(database %>% filter(paper %in% unique(dataMonths2000$paper), year %in% 2000:2007), 
+                  database %>% filter(paper %in% unique(dataMonths2008$paper), year %in% 2008:2011))
+
+database$index <- c(rep(2000, nrow(database[database$year %in% 2000:2007, ])), 
+                    rep(2008, nrow(database[database$year %in% 2008:2011, ])))
+  
+#coverage2000 <- coverage %>% filter(paper %in% unique(dataMonths2000$paper), year %in% 2000:2007)
+```
+
+### Explanatory analysis 2000-2007
+```{r}
+
+```
+
+### Explanatory analysis 2008-2011
+```{r}
+
+```
+
+### Economic variables
+
+```{r economicVariables}
+# Brent crude spot price from the U.S. Energy Information Administration API
+oilPrice <- GET("http://api.eia.gov/series/?api_key=0d61de68602f55c38b02f207c5896434&series_id=PET.RBRTE.D")
+oilPrice <- fromJSON((rawToChar(oilPrice$content)))
+oilPrice <- as_tibble(oilPrice$series$data[[1]])
+names(oilPrice) <- c("date", "oilPrice")
+oilPrice$date <- as.Date(oilPrice$date, format = "%Y%m%d")
+oilPrice$oilPrice <- as.numeric(oilPrice$oilPrice)
+
+# Norwegian local unemployment from Statistics Norway API
+queryUnemployment <- 
+  pxweb_query(list(
+    "Region" = c("*"), # Use "*" to select all
+    "Kjonn" = c("0"), # 0 = both
+    "ContentsCode" = c("Registrerte1"),
+    "Tid" = c("*")))
+
+unemployment <- pxweb_get("https://data.ssb.no/api/v0/en/table/10594", queryUnemployment)
+unemployment <- as.data.frame(unemployment, column.name.type = "text", variable.value.type = "text", stringsAsFactors = FALSE)
+unemployment <- unemployment %>% filter(region %in% c(unique(counties[[1]]))) 
+
+# List of historical uncertainty events from Larsen and Thorsrud paper.
+uncertaintyEvents <- read.csv("Data/uncertaintyEvents.csv", sep = ";", stringsAsFactors = F)
+uncertaintyEvents$date <- as.Date(uncertaintyEvents$date, format = "%d.%m.%Y")
+
+# Migration withing Norway from Statistics Norway API
+queryMigration <- 
+  pxweb_query(list(
+    "Region" = c("*"), 
+    "ContentsCode" = c("Netto"),
+    "Tid" = c("*")
+  ))
+
+migration <- pxweb_get("https://data.ssb.no/api/v0/en/table/05471", queryMigration)
+migration <- as.data.frame(migration, column.name.type = "text", variable.value.type = "text", stringsAsFactors = FALSE)
+migration <- migration %>% filter(region %in% c(unique(counties[[1]]))) 
+
+# World uncertainty index by Ahir, Bloom and Furceri: 
+tempWU = tempfile(fileext = ".xlsx")
+download.file("http://www.policyuncertainty.com/media/WUI_Data.xlsx", destfile = tempWU, mode = 'wb')
+worldUncertainty <- readxl::read_xlsx(tempWU, sheet = 3)
+worldUncertainty <- worldUncertainty %>% select(year, NOR)
+```
+
+### Weights
+
+```{r Weights}
+# Load word counts from the national library and sum by month
+paperNames <- unique(database$paper)
+
+# Spread per paper per county from 2000 til 2017
+coveragePerYear <- coverage %>% group_by(paper, county, year) %>% summarise(spread = sum(spread)) %>% ungroup()
+
+# Linear approximation of year/county pairs with missing data:
+linApprox <- tibble(paper = rep(paperNames, each = 18*(2014-2000+1)),
+                        county = rep(unique(coverage$county), each = (2014-2000+1), length(paperNames)),
+                        year = rep(2000:2014, length(paperNames)*18))
+
+coveragePerYear <- left_join(linApprox, coveragePerYear)
+
+coveragePerYear <- coveragePerYear %>% arrange(paper, county, year)
+
+coveragePerYear <- coveragePerYear %>% group_by(paper, county) %>% mutate(spread = na.approx(spread, na.rm = FALSE, rule = 2)) %>% ungroup() # For each group, NAs at the left or right side are set equal to the closest year.
+
+# Add rows with sum of spread in all counties
+totalCoveragePerYear <- coveragePerYear %>% group_by(year, paper) %>% summarise(spread = sum(spread, na.rm = TRUE)) %>% ungroup()
+
+totalCoveragePerYear$county <- "Total"
+
+coveragePerYear <- rbind(coveragePerYear, totalCoveragePerYear)
+
+# Add column with total yearly coverage per county
+coveragePerYear <- inner_join(
+  coveragePerYear, 
+  coveragePerYear %>% group_by(year, county) %>% summarise(totCoverage = sum(spread, na.rm = TRUE)) %>% ungroup())
+
+# Calculate weights
+coveragePerYear$weigth <- coveragePerYear$spread / coveragePerYear$totCoverage
+```
+
+## Database
+```{r}
+# Divide into total and local database
+database <- inner_join(database, coveragePerYear)
+
+database$uncertaintyPerWord <- database$uncertainty / database$total
+
+## Local:
+# Standarize each weighted newspaper-level series to unit standard deviation
+database <- database %>% group_by(paper, county, index) %>% mutate(stdr = sd(uncertaintyPerWord, na.rm = T))
+
+database <- database %>% group_by(paper, county, index) %>% mutate(uncertaintySt = uncertaintyPerWord / stdr) #Uncertainty per word divided by sd
+
+database$uncertaintyWeighted <- database$uncertaintyPerWord * database$weigth # Uncertainty per word per newspaper sold, per newspaper.
+
+database$uncertaintyStWeighted <- database$uncertaintySt * database$weigth
+```
+
+
+
+```{r database}
+# Make collumns with average and sum of all the newspapers by month
+database <- database %>%
+  group_by(county, year, month, index) %>%
+  summarise(totalSum = sum(total, na.rm = T), # Total words per month
+            usikkerhetSum = sum(uncertainty, na.rm = T), # Number of uncertainty words per month
+            uncertaintyPerWordSum = sum(uncertaintyPerWord, na.rm = T), # Number of uncertainty words per word per month
+            uncertaintyWeightedSum = sum(uncertaintyWeighted, na.rm = T), # Uncertainty per paper, per month
+            total = mean(total, na.rm = T), # Mean words per newspaper per month
+            usikkerhet = mean(uncertainty, na.rm = T), # Mean uncertainty words per newspaper per month
+            uncertaintyPerWord = mean(uncertaintyPerWord, na.rm = T), # Mean uncertainty words per word, per newspaper per              month
+            uncertaintyStWeighted = mean(uncertaintyStWeighted, na.rm = T),
+            uncertaintyWeighted = mean(uncertaintyWeighted, na.rm = T)) # Mean uncertainty per paper, per paper, per month
+
+
+# Normalize to mean 100 for St
+seriesMeanSt <- database %>% group_by(county, index) %>% summarise(mean(uncertaintyStWeighted, na.rm = T))
+
+database <- inner_join(database, seriesMeanSt)
+
+database$uncertaintyNormSt <- database$uncertaintyStWeighted * (100/database$`mean(uncertaintyStWeighted, na.rm = T)`)
+
+
+# Normalize to mean 100
+seriesMean <- database %>% group_by(county) %>% summarise(mean(uncertaintyWeighted, na.rm = T))
+
+database <- inner_join(database, seriesMean)
+
+database$uncertaintyNorm <- database$uncertaintyWeighted * (100/database$`mean(uncertaintyWeighted, na.rm = T)`)
+
+
+# Rolling mean
+database <-
+  database %>% 
+  group_by(county) %>%
+  mutate(rollingMeanSt = c(rep(NA, 9), rollmean(uncertaintyNormSt, 10, align = "right")),
+         rollingMean = c(rep(NA, 9), rollmean(uncertaintyNorm, 10, align = "right")))
+
+# Create series with oil price from 2000 to 2013
+database <- merge(database, oilPrice)
+
+# Create series with unemployemt for each county from 2000 to 2013
+database <- left_join(database, arbeidsledighet[, c("dateMonth", "county", "unemployment")])
+
+Skaler <- function(x, y){
+((x - min(x)) / (max(x) - min(x))) * (max(y) - min(y)) + min(y)
+}
+
+for (i in seq_along(unique(database$county))) {
+  database[database$county == unique(database$county)[i], "unempScaler"] <- Skaler(database[database$county == unique(database$county)[i], "unemployment", ], database[database$county == unique(database$county)[i], "uncertaintyNorm"])
+}
+
+# Create series with migration for each county from 2000 to 2013
+database <- left_join(database, innflytting)
+```
+
+
+
+<script>
+$( "input.hideshow" ).each( function ( index, button ) {
+  button.value = 'Hide Output';
+  $( button ).click( function () {
+    var target = this.nextSibling ? this : this.parentNode;
+    target = target.nextSibling.nextSibling;
+    if ( target.style.display == 'block' || target.style.display == '' ) {
+      target.style.display = 'none';
+      this.value = 'Show Output';
+    } else {
+      target.style.display = 'block';
+      this.value = 'Hide Output';
+    }
+  } );
+} );
+</script>
+
