@@ -10,6 +10,10 @@ output:
 
 
 
+The local uncertainty indexes are made by calculating the uncertainty words per word ratio over time, and multiplying them with newspapers weights that are based on the number of papers sold in each county. That way newspapers that sell the most in each county also contribute the most to their respective uncertainty index. 
+
+To get the best data coverage possible I decided to only use data from the year 2000 and onwards.
+
 ### Load packages
 
 
@@ -28,7 +32,7 @@ library(zoo) # Linear approximation
 The Norwegian national library is digitizing its newspaper collection. This is an ongoing process, which means that a lot of data is still missing. Still, there is partial data from 400 newspapers from 1763 until today.
 
 ### Wildcard search
-A wildcard search is a search that matches every string that starts with any of the strings provided. I do a wildcard search in the database using the Norwegian words for __uncertainty__.
+A wildcard search is a search that matches every string that starts with any of the strings provided. I do a wildcard search in the database using the Norwegian words for _uncertainty_. 
 
 Uncertainty words = "usikkerhet", "uvisse", "uvissa"
 
@@ -61,7 +65,7 @@ key_list = c(key_list, names(content(query_result)))
 ```
 
 ### List of uncertainty words used in the model:
-There are 636 unique strings starting with __uncertainty__. This includes strings ending with punctuation such as round bracets, forward slash or question mark. 
+There are 636 unique strings starting with _uncertainty_. This includes strings ending with punctuation such as round bracets, forward slash or question mark. 
 
 <button class="btn btn-primary" data-toggle="collapse" data-target="#BlockName"> Show/Hide </button>  
 <div id="BlockName" class="collapse">
@@ -393,7 +397,7 @@ sort(key_list)
 </div>
 
 ### Wordcounts
-Using the n-gram API, i count the number of uncertainty words from the wildcard search, per month, per newspaper. I also count the total number of words.
+Using the n-gram API, i count the number of uncertainty words from the wildcard search, per month, per newspaper. I also count the total number of words. 
 
 
 ```r
@@ -460,9 +464,10 @@ saveRDS(dataset, "Data/monthlyData.rds")
 
 ### Data cleaning
 Cleaning the national library data consists of three main steps:
-1.  Remove non-Norwegian language newspapers.
-2.  Remove newspapers with only one observation.
-3.  Combine newspaper series. Several newspapers are registrered under more that one name in the database. (e.g Dagsavisen and Arbeiderbladet). I decided to merge these manually.
+
+1. Remove non-Norwegian language newspapers.
+2. Remove newspapers with only one observation.
+3. Combine newspaper series. Several newspapers are registrered under more that one name in the database. (e.g Dagsavisen and Arbeiderbladet). I decided to merge these manually.
 
 
 ```r
@@ -507,7 +512,7 @@ database <- database %>% filter(!paper %in% oneObs$paper)
 uniquePapers <- c(uniquePapers, length(unique(database$paper)))
 ```
 
-The last year in the dataset only har six unique newspapers.
+The last year in the dataset only has six unique newspapers.
 
 
 ```r
@@ -546,7 +551,7 @@ data.frame(operation = c("Original data", "Removed non-Norwegian", "Combined ser
 ## 4      Removed one obs.          291
 ```
 
-Finally I add a date column to dataset
+Finally I add a date column to the dataset
 
 
 ```r
@@ -565,7 +570,7 @@ database <- inner_join(database, dateDf)
 The second main dataset is circulation data from the Norwegian Media Businesses' Association (NMBA). It contains the number of newspapers sold in each municipality of Norway. NMBA represents more that 97 percent of the total circulation of Norwegian newspapers.The data is downloaded from http://www.aviskatalogen.no/jsf/report/index.jsf
 
 ### Data cleaning
-Cleaning the circulation data consists of substituting Dano-Norwegian letters with __ae__, __o__, or __aa__, in addition to some other light string manipulation.
+Cleaning the circulation data consists of substituting Dano-Norwegian letters with _ae_, _o_, or _aa_, in addition to some other light string manipulation.
 
 
 ```r
@@ -860,7 +865,7 @@ coverage <- inner_join(coverage, coverageNumbers, by = "municipality.no.")
 ```
 
 ### Tile graph
-The tile graph shows whether there is data on the national library database for each newspaper in each month.
+The tile graph shows whether there is data in the national library database for each newspaper in each month. Dark color signals no data, while light color signals data.
 
 ```r
 possiblePapers <- tibble(paper = rep(rep(unique(database$paper)), each = 12*(noYears)), 
@@ -1046,6 +1051,7 @@ database <-
 
 ### Economic variables
 I collect a number of economic variables for comparison by using a number of different APIs. The variables are:
+
 * Brent crude oil price the U.S. Energy Information Administration
 * Local unemployment numbers from statistics Norway
 * Local migration numbers from statistics Norway

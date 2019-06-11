@@ -381,6 +381,8 @@ $(document).ready(function () {
 </div>
 
 
+<p>The local uncertainty indexes are made by calculating the uncertainty words per word ratio over time, and multiplying them with newspapers weights that are based on the number of papers sold in each county. That way newspapers that sell the most in each county also contribute the most to their respective uncertainty index.</p>
+<p>To get the best data coverage possible I decided to only use data from the year 2000 and onwards.</p>
 <div id="load-packages" class="section level3">
 <h3>Load packages</h3>
 <pre class="r"><code>library(httr) # GET, content
@@ -396,7 +398,7 @@ library(zoo) # Linear approximation</code></pre>
 <p>The Norwegian national library is digitizing its newspaper collection. This is an ongoing process, which means that a lot of data is still missing. Still, there is partial data from 400 newspapers from 1763 until today.</p>
 <div id="wildcard-search" class="section level3">
 <h3>Wildcard search</h3>
-<p>A wildcard search is a search that matches every string that starts with any of the strings provided. I do a wildcard search in the database using the Norwegian words for <strong>uncertainty</strong>.</p>
+<p>A wildcard search is a search that matches every string that starts with any of the strings provided. I do a wildcard search in the database using the Norwegian words for <em>uncertainty</em>.</p>
 <p>Uncertainty words = “usikkerhet”, “uvisse”, “uvissa”</p>
 <pre class="r"><code>rm(list = ls())
 
@@ -425,7 +427,7 @@ key_list = c(key_list, names(content(query_result)))
 </div>
 <div id="list-of-uncertainty-words-used-in-the-model" class="section level3">
 <h3>List of uncertainty words used in the model:</h3>
-<p>There are 636 unique strings starting with <strong>uncertainty</strong>. This includes strings ending with punctuation such as round bracets, forward slash or question mark.</p>
+<p>There are 636 unique strings starting with <em>uncertainty</em>. This includes strings ending with punctuation such as round bracets, forward slash or question mark.</p>
 <button class="btn btn-primary" data-toggle="collapse" data-target="#BlockName">
 Show/Hide
 </button>
@@ -816,7 +818,12 @@ saveRDS(dataset, &quot;Data/monthlyData.rds&quot;)</code></pre>
 </div>
 <div id="data-cleaning" class="section level3">
 <h3>Data cleaning</h3>
-<p>Cleaning the national library data consists of three main steps: 1. Remove non-Norwegian language newspapers. 2. Remove newspapers with only one observation. 3. Combine newspaper series. Several newspapers are registrered under more that one name in the database. (e.g Dagsavisen and Arbeiderbladet). I decided to merge these manually.</p>
+<p>Cleaning the national library data consists of three main steps:</p>
+<ol style="list-style-type: decimal">
+<li>Remove non-Norwegian language newspapers.</li>
+<li>Remove newspapers with only one observation.</li>
+<li>Combine newspaper series. Several newspapers are registrered under more that one name in the database. (e.g Dagsavisen and Arbeiderbladet). I decided to merge these manually.</li>
+</ol>
 <pre class="r"><code>database &lt;- readRDS(&quot;Data/monthlyData.rds&quot;)
 database$paper &lt;- as.character(database$paper)
 names(database)[6] &lt;- &quot;uncertainty&quot;
@@ -856,7 +863,7 @@ oneObs &lt;- database %&gt;% group_by(paper) %&gt;% count() %&gt;% filter(n == 1
 database &lt;- database %&gt;% filter(!paper %in% oneObs$paper)
 
 uniquePapers &lt;- c(uniquePapers, length(unique(database$paper)))</code></pre>
-<p>The last year in the dataset only har six unique newspapers.</p>
+<p>The last year in the dataset only has six unique newspapers.</p>
 <pre class="r"><code>database %&gt;% filter(year &gt; 2013) %&gt;% distinct(paper)</code></pre>
 <pre><code>##            paper
 ## 1         varden
@@ -874,7 +881,7 @@ uniquePapers &lt;- c(uniquePapers, length(unique(database$paper)))</code></pre>
 ## 2 Removed non-Norwegian          319
 ## 3       Combined series          292
 ## 4      Removed one obs.          291</code></pre>
-<p>Finally I add a date column to dataset</p>
+<p>Finally I add a date column to the dataset</p>
 <pre class="r"><code>database &lt;- database %&gt;% filter(year &gt;= startYear, year &lt;= endYear)
 
 dateDf &lt;- data.frame(seq(from = as.Date(&quot;2000/1/1&quot;), to = as.Date(&quot;2013/12/31&quot;), by = &quot;month&quot;), 
@@ -891,7 +898,7 @@ database &lt;- inner_join(database, dateDf)</code></pre>
 <p>The second main dataset is circulation data from the Norwegian Media Businesses’ Association (NMBA). It contains the number of newspapers sold in each municipality of Norway. NMBA represents more that 97 percent of the total circulation of Norwegian newspapers.The data is downloaded from <a href="http://www.aviskatalogen.no/jsf/report/index.jsf" class="uri">http://www.aviskatalogen.no/jsf/report/index.jsf</a></p>
 <div id="data-cleaning-1" class="section level3">
 <h3>Data cleaning</h3>
-<p>Cleaning the circulation data consists of substituting Dano-Norwegian letters with <strong>ae</strong>, <strong>o</strong>, or <strong>aa</strong>, in addition to some other light string manipulation.</p>
+<p>Cleaning the circulation data consists of substituting Dano-Norwegian letters with <em>ae</em>, <em>o</em>, or <em>aa</em>, in addition to some other light string manipulation.</p>
 <pre class="r"><code>coverage &lt;- read.csv(&quot;Data/SpredningOgHusstandsdekningKommune_1558367839680.csv&quot;,
                     row.names = NULL, sep = &quot;;&quot;, encoding = &quot;ISO 8859-1&quot;, 
                     stringsAsFactors = F)
@@ -1119,7 +1126,7 @@ coverage &lt;- inner_join(coverage, coverageNumbers, by = &quot;municipality.no.
 </div>
 <div id="tile-graph" class="section level3">
 <h3>Tile graph</h3>
-<p>The tile graph shows whether there is data on the national library database for each newspaper in each month.</p>
+<p>The tile graph shows whether there is data in the national library database for each newspaper in each month. Dark color signals no data, while light color signals data.</p>
 <pre class="r"><code>possiblePapers &lt;- tibble(paper = rep(rep(unique(database$paper)), each = 12*(noYears)), 
                          date = rep(seq(from = as.Date(&quot;2000/1/1&quot;), to = as.Date(&quot;2013/12/31&quot;), by = &quot;month&quot;), length(unique(database$paper))))
 
@@ -1262,7 +1269,14 @@ database &lt;-
          rollingMean = c(rep(NA, 9), rollmean(uncertaintyNorm, 10, align = &quot;right&quot;))) %&gt;% ungroup()</code></pre>
 <div id="economic-variables" class="section level3">
 <h3>Economic variables</h3>
-<p>I collect a number of economic variables for comparison by using a number of different APIs. The variables are: * Brent crude oil price the U.S. Energy Information Administration * Local unemployment numbers from statistics Norway * Local migration numbers from statistics Norway * A list of uncertainty events from the Vegard Larsen paper <a href="https://ideas.repec.org/p/bny/wpaper/0053.html">Components of uncertainty</a> 2017. I also added the 2011 Norway terror attack to the list. * The <a href="http://www.policyuncertainty.com/wui_quarterly.html">World Uncertainty Index</a> for Norway</p>
+<p>I collect a number of economic variables for comparison by using a number of different APIs. The variables are:</p>
+<ul>
+<li>Brent crude oil price the U.S. Energy Information Administration</li>
+<li>Local unemployment numbers from statistics Norway</li>
+<li>Local migration numbers from statistics Norway</li>
+<li>A list of uncertainty events from the Vegard Larsen paper <a href="https://ideas.repec.org/p/bny/wpaper/0053.html">Components of uncertainty</a> 2017. I also added the 2011 Norway terror attack to the list.</li>
+<li>The <a href="http://www.policyuncertainty.com/wui_quarterly.html">World Uncertainty Index</a> for Norway</li>
+</ul>
 <pre class="r"><code># Brent crude spot price from the U.S. Energy Information Administration API
 oilPrice &lt;- GET(&quot;http://api.eia.gov/series/?api_key=0d61de68602f55c38b02f207c5896434&amp;series_id=PET.RBRTE.D&quot;)
 oilPrice &lt;- fromJSON((rawToChar(oilPrice$content)))
