@@ -1,7 +1,6 @@
 ---
-title: "Local uncertainty"
+title: "Local news uncertainty"
 author: "Oskar Randen"
-date: "20 mai 2019"
 output:
   html_document:
     keep_md: true
@@ -459,7 +458,7 @@ for (mth in 1:12) {
 
 }
 
-saveRDS(dataset, "Data/monthlyData.rds")
+saveRDS(dataset, "data/monthlyData.rds")
 ```
 
 ### Data cleaning
@@ -471,7 +470,7 @@ Cleaning the national library data consists of three main steps:
 
 
 ```r
-database <- readRDS("Data/monthlyData.rds")
+database <- readRDS("data/monthlyData.rds")
 database$paper <- as.character(database$paper)
 names(database)[6] <- "uncertainty"
 
@@ -574,7 +573,7 @@ Cleaning the circulation data consists of substituting Dano-Norwegian letters wi
 
 
 ```r
-coverage <- read.csv("Data/SpredningOgHusstandsdekningKommune_1558367839680.csv",
+coverage <- read.csv("data/SpredningOgHusstandsdekningKommune_1558367839680.csv",
                     row.names = NULL, sep = ";", encoding = "ISO 8859-1", 
                     stringsAsFactors = F)
 
@@ -1105,23 +1104,23 @@ worldUncertainty <- readxl::read_xlsx(tempWU, sheet = 3)
 worldUncertainty <- worldUncertainty %>% select(year, NOR) %>% filter(substr(year, 1, 4) %in% 1996:2014) %>% select(-year)
 worldUncertainty$date <- seq(from = as.Date("1996/1/1"), to = as.Date("2014/12/31"), by = "quarter")
 
-saveRDS(oilPrice, "Data/oilPrice.rds")
-saveRDS(unemployment, "Data/unemployment.rds")
-saveRDS(migration, "Data/migration.rds")
-saveRDS(worldUncertainty, "Data/worldUncertainty.rds")
+saveRDS(oilPrice, "data/oilPrice.rds")
+saveRDS(unemployment, "data/unemployment.rds")
+saveRDS(migration, "data/migration.rds")
+saveRDS(worldUncertainty, "data/worldUncertainty.rds")
 ```
 
 At last, I add the economic variables to final database
 
 
 ```r
-oilPrice <- readRDS("Data/oilPrice.rds")
-unemployment <- readRDS("Data/unemployment.rds")
-migration <- readRDS("Data/migration.rds")
-worldUncertainty <- readRDS("Data/worldUncertainty.rds")
+oilPrice <- readRDS("data/oilPrice.rds")
+unemployment <- readRDS("data/unemployment.rds")
+migration <- readRDS("data/migration.rds")
+worldUncertainty <- readRDS("data/worldUncertainty.rds")
 
 # List of historical uncertainty events from Larsen paper.
-uncertaintyEvents <- read.csv("Data/uncertaintyEvents.csv", sep = ";", stringsAsFactors = F)
+uncertaintyEvents <- read.csv("data/uncertaintyEvents.csv", sep = ";", stringsAsFactors = F)
 uncertaintyEvents$date <- as.Date(uncertaintyEvents$date, format = "%d.%m.%Y")
 
 # Create series with oil price from 2000 to 2013
