@@ -18,15 +18,17 @@ library(httr) # GET, content
 library(tidyverse)
 library(stringdist)
 library(reshape2)
-library(jsonlite)
-library(pxweb) #S tatistics Norway API
+library(jsonlite)  
+library(pxweb) # Statistics Norway API
 library(zoo) # Linear approximation
 ```
 
 
 ## Norwegian national library
+The Norwegian national library is digitizing its newspaper collection. This is an ongoing process, which means that a lot of data is still missing. Still, there is partial data from 400 newspapers from 1763 until today.
 
 ### Wildcard search
+A wildcard search is a search that matches every string that starts with any of the strings provided. I do a wildcard search in the database using the Norwegian words for __uncertainty__.
 
 Uncertainty words = "usikkerhet", "uvisse", "uvissa"
 
@@ -59,8 +61,14 @@ key_list = c(key_list, names(content(query_result)))
 ```
 
 ### List of uncertainty words used in the model:
+There are 636 unique strings starting with __uncertainty__. This includes strings ending with punctuation such as round bracets, forward slash or question mark. 
+
 <button class="btn btn-primary" data-toggle="collapse" data-target="#BlockName"> Show/Hide </button>  
 <div id="BlockName" class="collapse">
+
+```r
+sort(key_list)
+```
 
 ```
 ##   [1] "usikkerhet"                      "usikkerhet-"                    
@@ -385,7 +393,7 @@ key_list = c(key_list, names(content(query_result)))
 </div>
 
 ### Wordcounts
-Counts the number of uncertainty words and total words, per month, per newspaper.
+Using the n-gram API, i count the number of uncertainty words from the wildcard search, per month, per newspaper. I also count the total number of words.
 
 
 ```r
@@ -451,6 +459,11 @@ saveRDS(dataset, "Data/monthlyData.rds")
 ```
 
 ### Data cleaning
+Cleaning the national library data consists of three main steps:
+1.  Remove non-Norwegian language newspapers.
+2.  Remove newspapers with only one observation.
+3.  Combine newspaper series. Several newspapers are registrered under more that one name in the database. (e.g Dagsavisen and Arbeiderbladet). I decided to merge these manually.
+
 
 ```r
 database <- readRDS("Data/monthlyData.rds")
@@ -493,7 +506,9 @@ database <- database %>% filter(!paper %in% oneObs$paper)
 
 uniquePapers <- c(uniquePapers, length(unique(database$paper)))
 ```
-There are only six newspapers in the database after 2013, so we only use data up until that year.
+
+The last year in the dataset only har six unique newspapers.
+
 
 ```r
 database %>% filter(year > 2013) %>% distinct(paper)
@@ -509,10 +524,15 @@ database %>% filter(year > 2013) %>% distinct(paper)
 ## 6 telemarksavisa
 ```
 
+I therefore only use papers up until 2013.
+
+
 ```r
 database <- database %>% filter(year <= 2013)
 ```
-How has the number of unique newspapers in the database been reduced?
+
+How has the number of unique newspapers in the database been reduced by the data cleaning?
+
 
 ```r
 data.frame(operation = c("Original data", "Removed non-Norwegian", "Combined series", "Removed one obs."), uniquePapers)
@@ -526,12 +546,27 @@ data.frame(operation = c("Original data", "Removed non-Norwegian", "Combined ser
 ## 4      Removed one obs.          291
 ```
 
+Finally I add a date column to dataset
 
+
+```r
+database <- database %>% filter(year >= startYear, year <= endYear)
+
+dateDf <- data.frame(seq(from = as.Date("2000/1/1"), to = as.Date("2013/12/31"), by = "month"), 
+                   rep(seq(from = startYear, to = endYear), each = 12), 
+                   rep(seq(from = 1, to = 12), noYears))
+
+names(dateDf) <- c("date", "year", "month")
+
+database <- inner_join(database, dateDf)
+```
 
 ## Norwegian Media Businesses' Association
-The data is downloaded from http://www.aviskatalogen.no/jsf/report/index.jsf
+The second main dataset is circulation data from the Norwegian Media Businesses' Association (NMBA). It contains the number of newspapers sold in each municipality of Norway. NMBA represents more that 97 percent of the total circulation of Norwegian newspapers.The data is downloaded from http://www.aviskatalogen.no/jsf/report/index.jsf
 
 ### Data cleaning
+Cleaning the circulation data consists of substituting Dano-Norwegian letters with __ae__, __o__, or __aa__, in addition to some other light string manipulation.
+
 
 ```r
 coverage <- read.csv("Data/SpredningOgHusstandsdekningKommune_1558367839680.csv",
@@ -544,7 +579,7 @@ names(coverage) <- c("paper", "municipality", "municipality.no.", "households", 
 
 coverage$paper <- tolower(coverage$paper)
 
-#
+# Replace Norwegian characters with ae, o or aa
 subt <- data.frame(original = c("æ", "ø", "å", "Æ", "Ø", "Å"), repl = c("ae", "o", "aa", "AE", "O", "AA"))
 
 for (i in 1:3) {
@@ -593,19 +628,19 @@ coverage$paper <- gsub(unwantedChr[i], "", coverage$paper)
 
 ### Library data
 
-Which paper/month has the most uncertainty words?
+Which newspaper/month has the most uncertainty words?
 
 ```r
 database %>% arrange(desc(uncertainty)) %>% head(n = 5)
 ```
 
 ```
-##        X year       paper month   total uncertainty
-## 1  82300 2001 aftenposten    10 8313413         353
-## 2 109900 2001 aftenposten     9 8486423         316
-## 3  54699 2000 aftenposten    11 9091350         303
-## 4  82299 2000 aftenposten    10 9573026         299
-## 5 109897 1998 aftenposten     9 8959129         294
+##        X year       paper month   total uncertainty       date
+## 1  82300 2001 aftenposten    10 8313413         353 2001-10-01
+## 2 109900 2001 aftenposten     9 8486423         316 2001-09-01
+## 3  54699 2000 aftenposten    11 9091350         303 2000-11-01
+## 4  82299 2000 aftenposten    10 9573026         299 2000-10-01
+## 5 109902 2003 aftenposten     9 7784878         294 2003-09-01
 ```
 Not suprisingly the time after 9/11 is at the top
 
@@ -619,12 +654,18 @@ database %>%
 ```
 
 ```
-##        X year          paper month total uncertainty uncertaintyPerWord
-## 1  97768 2013   klaebuposten     9 52647          18       0.0003418998
-## 2  97697 2011       klartale     9 39038          10       0.0002561607
-## 3  14967 2012   klaebuposten    12 36184           9       0.0002487287
-## 4 205887 2009 meraakerposten     5 35226           8       0.0002271050
-## 5 130681 2013      fjellljom     8 96254          21       0.0002181728
+##        X year          paper month total uncertainty       date
+## 1  97768 2013   klaebuposten     9 52647          18 2013-09-01
+## 2  97697 2011       klartale     9 39038          10 2011-09-01
+## 3  14967 2012   klaebuposten    12 36184           9 2012-12-01
+## 4 205887 2009 meraakerposten     5 35226           8 2009-05-01
+## 5 130681 2013      fjellljom     8 96254          21 2013-08-01
+##   uncertaintyPerWord
+## 1       0.0003418998
+## 2       0.0002561607
+## 3       0.0002487287
+## 4       0.0002271050
+## 5       0.0002181728
 ```
 
 How many paper/months have no uncertainty words?
@@ -634,25 +675,34 @@ database %>% filter(uncertainty == 0) %>% nrow()
 ```
 
 ```
-## [1] 3151
+## [1] 666
 ```
+
+What percentage of the total number of papers/months is that?
+
+```r
+paste0(format((database %>% filter(uncertainty == 0) %>% nrow() * 100) / database %>% nrow(), digits = 3), "%") # Ratio of paper/months with no unc. words
+```
+
+```
+## [1] "4.55%"
+```
+
+Time for some graphs. What is the total number of unique newspapers in the database over time?
 
 
 ```r
-database <- database %>% filter(year >= startYear, year <= endYear)
-
-dateDf <- data.frame(seq(from = as.Date("2000/1/1"), to = as.Date("2013/12/31"), by = "month"), 
-                   rep(seq(from = startYear, to = endYear), each = 12), 
-                   rep(seq(from = 1, to = 12), noYears))
-
-names(dateDf) <- c("date", "year", "month")
-
-database <- inner_join(database, dateDf)
+# Unique newspapers
+database %>% filter(!total == 0) %>% group_by(date) %>% distinct(paper) %>% count() %>%
+  ggplot(aes(date, n)) +
+  geom_line() +
+  scale_x_date(breaks = as.Date(c("2000-01-01", "2002-01-01", "2004-01-01", "2006-01-01", "2008-01-01", "2010-01-01", "2012-01-01")), date_labels = "%Y") +
+  theme_classic()
 ```
 
-```
-## Joining, by = c("year", "month")
-```
+![](localUncertainty_files/figure-html/unnamed-chunk-15-1.png)<!-- -->
+
+And how does the number of total monthly words develop?
 
 
 ```r
@@ -664,20 +714,7 @@ database %>% group_by(date) %>% summarise(total = sum(total)) %>%
   theme_classic()
 ```
 
-![](localUncertainty_files/figure-html/unnamed-chunk-13-1.png)<!-- -->
-
-```r
-# Unique newspapers
-database %>% filter(!total == 0) %>% group_by(date) %>% distinct(paper) %>% count() %>%
-  ggplot(aes(date, n)) +
-  geom_line() +
-  scale_x_date(breaks = as.Date(c("2000-01-01", "2002-01-01", "2004-01-01", "2006-01-01", "2008-01-01", "2010-01-01", "2012-01-01")), date_labels = "%Y") +
-  theme_classic()
-```
-
-![](localUncertainty_files/figure-html/unnamed-chunk-13-2.png)<!-- -->
-
-
+![](localUncertainty_files/figure-html/unnamed-chunk-16-1.png)<!-- -->
 
 ### Circulation data
 
@@ -690,8 +727,9 @@ ggplot(aes(year, spread)) +
   theme_classic()
 ```
 
-![](localUncertainty_files/figure-html/unnamed-chunk-14-1.png)<!-- -->
+![](localUncertainty_files/figure-html/unnamed-chunk-17-1.png)<!-- -->
 
+Number of unique newspapers per year.
 
 ```r
 coverage %>% group_by(year) %>% distinct(paper) %>% count() %>%
@@ -700,10 +738,10 @@ ggplot(aes(year, n)) +
   theme_classic()
 ```
 
-![](localUncertainty_files/figure-html/unnamed-chunk-15-1.png)<!-- -->
+![](localUncertainty_files/figure-html/unnamed-chunk-18-1.png)<!-- -->
 
 ## Match newspaper names using string distance
-A bit messy, but it seems like the best way. Some have to be manually matched at the end.
+The newspaper names used in the two databases are often spelled a bit different. First I match the ones that have the excact same name. Then, I use several string distance measurements to match the rest. String distance metrics are ways to compare the similarity of two strings. They can for instance be the "minimum number of single-character edits needed to change one word into the other" (Levenshtein distance), or "1 minus the size of the intersection divided by the size of the union of the sample sets" (Jaccard distance). It is a bit messy, but it seems like the best way. Some newspapers also have to be manually matched at the end.
 
 
 ```r
@@ -713,13 +751,6 @@ papersCoverage <- data.frame(paper = tolower(unique(coverage$paper)), stringsAsF
 papersDatabase <- data.frame(paper = unique(database$paper), stringsAsFactors = FALSE)
 
 matchedPapers <- inner_join(papersCoverage, papersDatabase)
-```
-
-```
-## Joining, by = "paper"
-```
-
-```r
 matchedPapers <- data.frame(s1name = matchedPapers$paper, s2name = matchedPapers$paper, stringsAsFactors = FALSE)
 
 papersCoverage <- papersCoverage %>% filter(!paper %in% matchedPapers$s1name)
@@ -786,21 +817,22 @@ matched.names.matrix <- matched.names.matrix %>%
 matchedPapers <- rbind(matchedPapers, matched.names.matrix[c(1, 3, 5, 8, 11, 13, 76), c(3, 4)])
 ```
 
+How many matching newspapers are there in the two databases?
+
+```r
+nrow(matchedPapers)
+```
+
+```
+## [1] 178
+```
+
+Subset only the matched newspapers:
+
 
 ```r
 coverage <- matchedPapers %>% rename(paper = s1name) %>% left_join(coverage) %>% select(-s2name)
-```
-
-```
-## Joining, by = "paper"
-```
-
-```r
 database <- matchedPapers %>% rename(paper = s2name) %>% left_join(database) %>% select(-paper) %>% rename(paper = s1name)
-```
-
-```
-## Joining, by = "paper"
 ```
 
 ### Add counties
@@ -828,6 +860,7 @@ coverage <- inner_join(coverage, coverageNumbers, by = "municipality.no.")
 ```
 
 ### Tile graph
+The tile graph shows whether there is data on the national library database for each newspaper in each month.
 
 ```r
 possiblePapers <- tibble(paper = rep(rep(unique(database$paper)), each = 12*(noYears)), 
@@ -840,23 +873,11 @@ papersPerMonth <- database %>%
   mutate(data = 1)
   
 tileData <- right_join(papersPerMonth, possiblePapers)
-```
 
-```
-## Joining, by = c("date", "paper")
-```
-
-```r
 tileData[is.na(tileData)] <- 0
 
 tileData <- inner_join(tileData, papersPerMonth %>% group_by(paper) %>% summarise(noOfMonths = sum(data)) %>% ungroup())
-```
 
-```
-## Joining, by = "paper"
-```
-
-```r
 tileData <- tileData %>% arrange(noOfMonths)
 
 tileData$paper <- factor(tileData$paper, levels = (unique(tileData$paper)))
@@ -870,16 +891,11 @@ graphData <- tileData %>% #filter(year %in% 2000:2007) %>%
         axis.title.y=element_blank())
 ```
 
-
-```r
-graphData
-```
-
 <img src="localUncertainty_files/figure-html/graphData-1.png" width="100%" />
-
+We see that most of the newspapers only have data between the years 2008 and 2012. To get the most out of the dataset, I decide to create two individual sets of indexes: One for the years 2000:2007, and one for 2008:2011.
 
 ### Split the dataset:
-
+I split the dataset in two, and use only newspapers that have at least 80% coverage in the selected time period.
 
 ```r
 dataMonths2000 <- database %>%
@@ -905,17 +921,136 @@ database <- rbind(database %>% filter(paper %in% unique(dataMonths2000$paper), y
 
 database$index <- c(rep(2000, nrow(database[database$year %in% 2000:2007, ])), 
                     rep(2008, nrow(database[database$year %in% 2008:2011, ])))
-  
-#coverage2000 <- coverage %>% filter(paper %in% unique(dataMonths2000$paper), year %in% 2000:2007)
 ```
 
-### Explanatory analysis 2000-2007
+### Weights
+Each newspaper gets a corresponding weight for each county/year pair.
+
+I start by aggregating the circulation data for all the municipalities in each county.
+
+```r
+coveragePerYear <- coverage %>% group_by(paper, county, year) %>% summarise(spread = sum(spread)) %>% ungroup()
+```
+
+Some newspapers have missing data for some counties in some years. Because the sales number are relatively non-volative, I choose to interpolate by drawing a straight line between the closest year. For year at the end of the time series, i choose to set their value equal to the closest year available.
 
 
-### Explanatory analysis 2008-2011
+```r
+paperNames <- unique(database$paper)
 
+# Linear approximation of year/county pairs with missing data:
+linApprox <- tibble(paper = rep(paperNames, each = 18*(2014-2000+1)),
+                        county = rep(unique(coverage$county), each = (2014-2000+1), length(paperNames)),
+                        year = rep(2000:2014, length(paperNames)*18))
+
+coveragePerYear <- left_join(linApprox, coveragePerYear)
+
+coveragePerYear <- coveragePerYear %>% arrange(paper, county, year)
+
+coveragePerYear <- coveragePerYear %>% group_by(paper, county) %>% mutate(spread = na.approx(spread, na.rm = FALSE, rule = 2)) %>% ungroup() # For each group, NAs at the left or right side are set equal to the closest year.
+```
+
+THe weights are calcutated as the ratio of newspapers sold to all newspapers sold, for each county, in each year. The weights therefore sum to one for each county/year pair.
+
+
+```r
+# Add rows with sum of spread in all counties
+totalCoveragePerYear <- coveragePerYear %>% group_by(year, paper) %>% summarise(spread = sum(spread, na.rm = TRUE)) %>% ungroup()
+
+totalCoveragePerYear$county <- "Total"
+
+coveragePerYear <- rbind(coveragePerYear, totalCoveragePerYear)
+
+# Add column with total yearly coverage per county
+coveragePerYear <- inner_join(
+  coveragePerYear, 
+  coveragePerYear %>% group_by(year, county) %>% summarise(totCoverage = sum(spread, na.rm = TRUE)) %>% ungroup())
+
+# Calculate weights
+coveragePerYear$weigth <- coveragePerYear$spread / coveragePerYear$totCoverage
+```
+
+## Uncertainty index
+
+We start by joining the circulation data with the library data.
+
+```r
+database <- inner_join(database, coveragePerYear)
+```
+
+Divide the number of uncertainty words by the total number of words to get __uncertainty per word__. I do this to control for the change in total number of words over time. Next, I multiply these numbers with the corresponding weights that we created, to get __uncertainty per word per newspaper sold, per newspaper__. 
+
+
+```r
+database$uncertaintyPerWord <- database$uncertainty / database$total
+
+# Standarize each weighted newspaper-level series to unit standard deviation
+database <- database %>% group_by(paper, county, index) %>% mutate(stdr = sd(uncertaintyPerWord, na.rm = T)) %>% ungroup()
+
+database <- database %>% group_by(paper, county, index) %>% mutate(uncertaintySt = uncertaintyPerWord / stdr) %>% ungroup() #Uncertainty per word divided by sd
+
+database$uncertaintyWeighted <- database$uncertaintyPerWord * database$weigth # Uncertainty per word per newspaper sold, per newspaper.
+
+database$uncertaintyStWeighted <- database$uncertaintySt * database$weigth
+```
+
+Then its time to aggregate all the newspapers together.
+
+
+```r
+# Make collumns with average and sum of all the newspapers by month
+database <- database %>%
+  group_by(county, date, index) %>%
+  summarise(totalSum = sum(total, na.rm = T), # Total words per month
+            usikkerhetSum = sum(uncertainty, na.rm = T), # Number of uncertainty words per month
+            uncertaintyPerWordSum = sum(uncertaintyPerWord, na.rm = T), # Number of uncertainty words per word per month
+            uncertaintyWeightedSum = sum(uncertaintyWeighted, na.rm = T), # Uncertainty per paper, per month
+            total = mean(total, na.rm = T), # Mean words per newspaper per month
+            usikkerhet = mean(uncertainty, na.rm = T), # Mean uncertainty words per newspaper per month
+            uncertaintyPerWord = mean(uncertaintyPerWord, na.rm = T), # Mean uncertainty words per word, per newspaper per              month
+            uncertaintyStWeighted = mean(uncertaintyStWeighted, na.rm = T),
+            uncertaintyWeighted = mean(uncertaintyWeighted, na.rm = T)) %>% ungroup() # Mean uncertainty per paper, per paper, per month
+```
+
+After aggregating the newspaper series I normalize each county index to mean 100 to make it easier to interpret.
+
+
+```r
+# Normalize to mean 100 for St
+seriesMeanSt <- database %>% group_by(county, index) %>% summarise(mean(uncertaintyStWeighted, na.rm = T)) %>% ungroup()
+
+database <- inner_join(database, seriesMeanSt)
+
+database$uncertaintyNormSt <- database$uncertaintyStWeighted * (100/database$`mean(uncertaintyStWeighted, na.rm = T)`)
+
+
+# Normalize to mean 100
+seriesMean <- database %>% group_by(county, index) %>% summarise(mean(uncertaintyWeighted, na.rm = T)) %>% ungroup()
+
+database <- inner_join(database, seriesMean)
+
+database$uncertaintyNorm <- database$uncertaintyWeighted * (100/database$`mean(uncertaintyWeighted, na.rm = T)`)
+```
+
+I also make 10 month rolling averages of the uncertainty indexes.
+
+
+```r
+# Rolling mean
+database <-
+  database %>% 
+  group_by(county, index) %>%
+  mutate(rollingMeanSt = c(rep(NA, 9), rollmean(uncertaintyNormSt, 10, align = "right")),
+         rollingMean = c(rep(NA, 9), rollmean(uncertaintyNorm, 10, align = "right"))) %>% ungroup()
+```
 
 ### Economic variables
+I collect a number of economic variables for comparison by using a number of different APIs. The variables are:
+* Brent crude oil price the U.S. Energy Information Administration
+* Local unemployment numbers from statistics Norway
+* Local migration numbers from statistics Norway
+* A list of uncertainty events from the Vegard Larsen paper [Components of uncertainty](https://ideas.repec.org/p/bny/wpaper/0053.html) 2017. I also added the 2011 Norway terror attack to the list.
+* The [World Uncertainty Index](http://www.policyuncertainty.com/wui_quarterly.html) for Norway
 
 
 ```r
@@ -923,14 +1058,6 @@ database$index <- c(rep(2000, nrow(database[database$year %in% 2000:2007, ])),
 oilPrice <- GET("http://api.eia.gov/series/?api_key=0d61de68602f55c38b02f207c5896434&series_id=PET.RBRTE.D")
 oilPrice <- fromJSON((rawToChar(oilPrice$content)))
 oilPrice <- as_tibble(oilPrice$series$data[[1]])
-```
-
-```
-## Warning: `as_tibble.matrix()` requires a matrix with column names or a `.name_repair` argument. Using compatibility `.name_repair`.
-## This warning is displayed once per session.
-```
-
-```r
 names(oilPrice) <- c("date", "oilPrice")
 oilPrice$date <- as.Date(oilPrice$date, format = "%Y%m%d")
 oilPrice$oilPrice <- as.numeric(oilPrice$oilPrice)
@@ -944,41 +1071,14 @@ queryUnemployment <-
     "Tid" = c("*")))
 
 unemployment <- pxweb_get("https://data.ssb.no/api/v0/en/table/10594", queryUnemployment)
-```
-
-```
-##   Downloading large query (in 8 batches):
-##   |                                                                         |                                                                 |   0%  |                                                                         |========                                                         |  12%  |                                                                         |================                                                 |  25%  |                                                                         |========================                                         |  38%  |                                                                         |================================                                 |  50%  |                                                                         |=========================================                        |  62%  |                                                                         |=================================================                |  75%  |                                                                         |=========================================================        |  88%  |                                                                         |=================================================================| 100%
-```
-
-```r
 unemployment <- as.data.frame(unemployment, column.name.type = "text", variable.value.type = "text", stringsAsFactors = FALSE)
-```
-
-```
-## Warning in pxweb_as_data_frame.pxweb_data(x, row.names = row.names,
-## optional = optional, : NAs introduced by coercion
-```
-
-```r
 unemployment <- unemployment %>% filter(region %in% c(unique(counties[[1]])))
 unemployment <- unemployment %>% 
   inner_join(tibble(date = rep(seq(from = as.Date("1990/1/1"), to = as.Date("2014/12/31"), by = "month")), 
                     month = paste0(rep(1990:2014, each = 12),
                                    "M",
                                    rep(sprintf("%02d", 1:12), 2014-1990+1)))) %>% select(-month, -sex)
-```
-
-```
-## Joining, by = "month"
-```
-
-```r
 names(unemployment) <- c("county", "unemployed", "date")
-
-# List of historical uncertainty events from Larsen and Thorsrud paper.
-uncertaintyEvents <- read.csv("Data/uncertaintyEvents.csv", sep = ";", stringsAsFactors = F)
-uncertaintyEvents$date <- as.Date(uncertaintyEvents$date, format = "%d.%m.%Y")
 
 # Migration withing Norway from Statistics Norway API
 queryMigration <- 
@@ -998,147 +1098,32 @@ download.file("http://www.policyuncertainty.com/media/WUI_Data.xlsx", destfile =
 worldUncertainty <- readxl::read_xlsx(tempWU, sheet = 3)
 worldUncertainty <- worldUncertainty %>% select(year, NOR) %>% filter(substr(year, 1, 4) %in% 1996:2014) %>% select(-year)
 worldUncertainty$date <- seq(from = as.Date("1996/1/1"), to = as.Date("2014/12/31"), by = "quarter")
+
+saveRDS(oilPrice, "Data/oilPrice.rds")
+saveRDS(unemployment, "Data/unemployment.rds")
+saveRDS(migration, "Data/migration.rds")
+saveRDS(worldUncertainty, "Data/worldUncertainty.rds")
 ```
 
-### Weights
+At last, I add the economic variables to final database
 
 
 ```r
-# Load word counts from the national library and sum by month
-paperNames <- unique(database$paper)
+oilPrice <- readRDS("Data/oilPrice.rds")
+unemployment <- readRDS("Data/unemployment.rds")
+migration <- readRDS("Data/migration.rds")
+worldUncertainty <- readRDS("Data/worldUncertainty.rds")
 
-# Spread per paper per county from 2000 til 2017
-coveragePerYear <- coverage %>% group_by(paper, county, year) %>% summarise(spread = sum(spread)) %>% ungroup()
-
-# Linear approximation of year/county pairs with missing data:
-linApprox <- tibble(paper = rep(paperNames, each = 18*(2014-2000+1)),
-                        county = rep(unique(coverage$county), each = (2014-2000+1), length(paperNames)),
-                        year = rep(2000:2014, length(paperNames)*18))
-
-coveragePerYear <- left_join(linApprox, coveragePerYear)
-```
-
-```
-## Joining, by = c("paper", "county", "year")
-```
-
-```r
-coveragePerYear <- coveragePerYear %>% arrange(paper, county, year)
-
-coveragePerYear <- coveragePerYear %>% group_by(paper, county) %>% mutate(spread = na.approx(spread, na.rm = FALSE, rule = 2)) %>% ungroup() # For each group, NAs at the left or right side are set equal to the closest year.
-
-# Add rows with sum of spread in all counties
-totalCoveragePerYear <- coveragePerYear %>% group_by(year, paper) %>% summarise(spread = sum(spread, na.rm = TRUE)) %>% ungroup()
-
-totalCoveragePerYear$county <- "Total"
-
-coveragePerYear <- rbind(coveragePerYear, totalCoveragePerYear)
-
-# Add column with total yearly coverage per county
-coveragePerYear <- inner_join(
-  coveragePerYear, 
-  coveragePerYear %>% group_by(year, county) %>% summarise(totCoverage = sum(spread, na.rm = TRUE)) %>% ungroup())
-```
-
-```
-## Joining, by = c("county", "year")
-```
-
-```r
-# Calculate weights
-coveragePerYear$weigth <- coveragePerYear$spread / coveragePerYear$totCoverage
-```
-
-## Database
-
-```r
-# Divide into total and local database
-database <- inner_join(database, coveragePerYear)
-```
-
-```
-## Joining, by = c("paper", "year")
-```
-
-```r
-database$uncertaintyPerWord <- database$uncertainty / database$total
-
-## Local:
-# Standarize each weighted newspaper-level series to unit standard deviation
-database <- database %>% group_by(paper, county, index) %>% mutate(stdr = sd(uncertaintyPerWord, na.rm = T)) %>% ungroup()
-
-database <- database %>% group_by(paper, county, index) %>% mutate(uncertaintySt = uncertaintyPerWord / stdr) %>% ungroup() #Uncertainty per word divided by sd
-
-database$uncertaintyWeighted <- database$uncertaintyPerWord * database$weigth # Uncertainty per word per newspaper sold, per newspaper.
-
-database$uncertaintyStWeighted <- database$uncertaintySt * database$weigth
-```
-
-
-
-
-```r
-# Make collumns with average and sum of all the newspapers by month
-database <- database %>%
-  group_by(county, year, month, index) %>%
-  summarise(totalSum = sum(total, na.rm = T), # Total words per month
-            usikkerhetSum = sum(uncertainty, na.rm = T), # Number of uncertainty words per month
-            uncertaintyPerWordSum = sum(uncertaintyPerWord, na.rm = T), # Number of uncertainty words per word per month
-            uncertaintyWeightedSum = sum(uncertaintyWeighted, na.rm = T), # Uncertainty per paper, per month
-            total = mean(total, na.rm = T), # Mean words per newspaper per month
-            usikkerhet = mean(uncertainty, na.rm = T), # Mean uncertainty words per newspaper per month
-            uncertaintyPerWord = mean(uncertaintyPerWord, na.rm = T), # Mean uncertainty words per word, per newspaper per              month
-            uncertaintyStWeighted = mean(uncertaintyStWeighted, na.rm = T),
-            uncertaintyWeighted = mean(uncertaintyWeighted, na.rm = T)) %>% ungroup() # Mean uncertainty per paper, per paper, per month
-
-
-# Normalize to mean 100 for St
-seriesMeanSt <- database %>% group_by(county, index) %>% summarise(mean(uncertaintyStWeighted, na.rm = T)) %>% ungroup()
-
-database <- inner_join(database, seriesMeanSt)
-```
-
-```
-## Joining, by = c("county", "index")
-```
-
-```r
-database$uncertaintyNormSt <- database$uncertaintyStWeighted * (100/database$`mean(uncertaintyStWeighted, na.rm = T)`)
-
-
-# Normalize to mean 100
-seriesMean <- database %>% group_by(county, index) %>% summarise(mean(uncertaintyWeighted, na.rm = T)) %>% ungroup()
-
-database <- inner_join(database, seriesMean)
-```
-
-```
-## Joining, by = c("county", "index")
-```
-
-```r
-database$uncertaintyNorm <- database$uncertaintyWeighted * (100/database$`mean(uncertaintyWeighted, na.rm = T)`)
-
-
-# Rolling mean
-database <-
-  database %>% 
-  group_by(county, index) %>%
-  mutate(rollingMeanSt = c(rep(NA, 9), rollmean(uncertaintyNormSt, 10, align = "right")),
-         rollingMean = c(rep(NA, 9), rollmean(uncertaintyNorm, 10, align = "right"))) %>% ungroup()
+# List of historical uncertainty events from Larsen paper.
+uncertaintyEvents <- read.csv("Data/uncertaintyEvents.csv", sep = ";", stringsAsFactors = F)
+uncertaintyEvents$date <- as.Date(uncertaintyEvents$date, format = "%d.%m.%Y")
 
 # Create series with oil price from 2000 to 2013
-database <- merge(database, oilPrice)
+prove <- left_join(database, oilPrice)
 
 # Create series with unemployemt for each county from 2000 to 2013
 database <- left_join(database, unemployment[, c("date", "county", "unemployed")])
-```
 
-```
-## Joining, by = c("county", "date")
-```
-
-```r
 Skaler <- function(x, y){
 ((x - min(x)) / (max(x) - min(x))) * (max(y) - min(y)) + min(y)
 }
@@ -1147,11 +1132,116 @@ for (i in seq_along(unique(database$county))) {
   database[database$county == unique(database$county)[i], "unempScaler"] <- Skaler(database[database$county == unique(database$county)[i], "unemployed", ], database[database$county == unique(database$county)[i], "uncertaintyNorm"])
 }
 
+database <- left_join(database, worldUncertainty)
+database$NOR <- rep(database[!is.na(database$NOR),][["NOR"]], each = 3)
+
+for (i in seq_along(unique(database$county))) {
+  database[database$county == unique(database$county)[i], "NORScaler"] <- Skaler(database[database$county == unique(database$county)[i], "NOR", ],
+database[database$county == unique(database$county)[i], "uncertaintyNorm"])
+}
+
+#database[,"worldIndex"] <-  Skaler(database$worldIndex, database$uncertaintyNorm)
+
 # Create series with migration for each county from 2000 to 2013
 #database <- left_join(database, migration)
 ```
 
+### Graphs
 
+National uncertianty index 2000:2007
+
+Uncertainty events from left to right: 9/11, War in Afghanistan, WorldCom bankruptcy, Bottom of NASDAQ, second Gulf war, start of the Global Financial Crisis.
+
+
+```r
+database %>% filter(index == 2000, county == "Total") %>%
+  ggplot(aes(date, uncertaintyNorm)) +
+  geom_line() +
+  #geom_line(aes(dateMonth, rollingMean)) +
+  #geom_line(aes(dateMonth, rollingMean)) +
+  geom_vline(xintercept = uncertaintyEvents[c(12, 14, 15, 16, 17, 18, 19), 2],
+             show.legend = T, linetype = "dotted", size = 1) +
+  theme_classic() +
+  theme(axis.title = element_blank())
+```
+
+<img src="localUncertainty_files/figure-html/unnamed-chunk-34-1.png" width="100%" />
+
+National uncertianty index 2008:2011
+
+Uncertainty events from left to right: Collapse of Lehman Brothers, first Libyan civil war, Norway attacks, Greek proposed economy referendum.
+
+
+```r
+database %>% filter(index == 2008, county == "Total") %>%
+  ggplot(aes(date, uncertaintyNorm)) +
+  geom_line() +
+ # geom_line(aes(dateMonth, worldIndex)) +
+  geom_vline(xintercept = uncertaintyEvents[c(20, 21, 23, 25), 2],
+             show.legend = T, linetype = "dotted", size = 1) +
+  theme_classic() +
+  theme(axis.title = element_blank())
+```
+
+<img src="localUncertainty_files/figure-html/unnamed-chunk-35-1.png" width="100%" />
+
+Local uncertianty index 2000:2007
+
+
+```r
+database %>% filter(index == 2000, !county == "Total") %>% 
+  ggplot(aes(x = date, y = uncertaintyNorm)) +
+  geom_line() +
+  facet_wrap(~county) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  scale_x_date(as.Date(c("2008-01-01","2009-01-01", "2010-01-01", "2011-01-01", "2012-01-01")), date_labels = "%y") +
+  theme(axis.title = element_blank())
+```
+
+<img src="localUncertainty_files/figure-html/unnamed-chunk-36-1.png" width="100%" />
+
+Local uncertianty index 2008:2011
+
+
+```r
+database %>% filter(index == 2008, !county == "Total") %>% 
+  ggplot(aes(x = date, y = uncertaintyNorm)) +
+  geom_line() +
+  facet_wrap(~county) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  scale_x_date(as.Date(c("2008-01-01","2009-01-01", "2010-01-01", "2011-01-01", "2012-01-01")), date_labels = "%y") +
+  theme(axis.title = element_blank())
+```
+
+<img src="localUncertainty_files/figure-html/unnamed-chunk-37-1.png" width="100%" />
+
+## Comparison to the world uncertainty index for Norway:
+
+
+```r
+database %>% filter(index == 2000, county == "Total") %>%
+  ggplot(aes(date, uncertaintyNorm)) +
+  geom_line(color = "gray") +
+  geom_line(aes(date, NORScaler)) +
+  theme_classic() +
+  theme(axis.title = element_blank())
+```
+
+![](localUncertainty_files/figure-html/unnamed-chunk-38-1.png)<!-- -->
+
+
+```r
+database %>% filter(index == 2008, county == "Total") %>%
+  ggplot(aes(date, uncertaintyNorm)) +
+  geom_line(color = "gray") +
+  geom_line(aes(date, NORScaler)) +
+  theme_classic() +
+  theme(axis.title = element_blank())
+```
+
+![](localUncertainty_files/figure-html/unnamed-chunk-39-1.png)<!-- -->
 
 <script>
 $( "input.hideshow" ).each( function ( index, button ) {
