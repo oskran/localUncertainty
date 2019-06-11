@@ -705,7 +705,7 @@ database %>% filter(!total == 0) %>% group_by(date) %>% distinct(paper) %>% coun
   theme_classic()
 ```
 
-![](localUncertainty_files/figure-html/unnamed-chunk-15-1.png)<!-- -->
+![](localUncertainty_files/figure-html/Unique newspaper over time-1.png)<!-- -->
 
 And how does the number of total monthly words develop?
 
@@ -719,7 +719,7 @@ database %>% group_by(date) %>% summarise(total = sum(total)) %>%
   theme_classic()
 ```
 
-![](localUncertainty_files/figure-html/unnamed-chunk-16-1.png)<!-- -->
+![](localUncertainty_files/figure-html/Total words over time-1.png)<!-- -->
 
 ### Circulation data
 
@@ -732,7 +732,7 @@ ggplot(aes(year, spread)) +
   theme_classic()
 ```
 
-![](localUncertainty_files/figure-html/unnamed-chunk-17-1.png)<!-- -->
+![](localUncertainty_files/figure-html/Total circulation per year-1.png)<!-- -->
 
 Number of unique newspapers per year.
 
@@ -743,7 +743,7 @@ ggplot(aes(year, n)) +
   theme_classic()
 ```
 
-![](localUncertainty_files/figure-html/unnamed-chunk-18-1.png)<!-- -->
+![](localUncertainty_files/figure-html/Number of unique newspapers per year-1.png)<!-- -->
 
 ## Match newspaper names using string distance
 The newspaper names used in the two databases are often spelled a bit different. First I match the ones that have the excact same name. Then, I use several string distance measurements to match the rest. String distance metrics are ways to compare the similarity of two strings. They can for instance be the "minimum number of single-character edits needed to change one word into the other" (Levenshtein distance), or "1 minus the size of the intersection divided by the size of the union of the sample sets" (Jaccard distance). It is a bit messy, but it seems like the best way. Some newspapers also have to be manually matched at the end.
@@ -1171,7 +1171,7 @@ database %>% filter(index == 2000, county == "Total") %>%
   theme(axis.title = element_blank())
 ```
 
-<img src="localUncertainty_files/figure-html/unnamed-chunk-34-1.png" width="100%" />
+<img src="localUncertainty_files/figure-html/National uncertianty index 2000:2007-1.png" width="100%" />
 
 National uncertianty index 2008:2011
 
@@ -1189,7 +1189,7 @@ database %>% filter(index == 2008, county == "Total") %>%
   theme(axis.title = element_blank())
 ```
 
-<img src="localUncertainty_files/figure-html/unnamed-chunk-35-1.png" width="100%" />
+<img src="localUncertainty_files/figure-html/National uncertianty index 2008:2011-1.png" width="100%" />
 
 Local uncertianty index 2000:2007
 
@@ -1205,7 +1205,7 @@ database %>% filter(index == 2000, !county == "Total") %>%
   theme(axis.title = element_blank())
 ```
 
-<img src="localUncertainty_files/figure-html/unnamed-chunk-36-1.png" width="100%" />
+<img src="localUncertainty_files/figure-html/Local uncertianty index 2000:2007-1.png" width="100%" />
 
 Local uncertianty index 2008:2011
 
@@ -1221,7 +1221,7 @@ database %>% filter(index == 2008, !county == "Total") %>%
   theme(axis.title = element_blank())
 ```
 
-<img src="localUncertainty_files/figure-html/unnamed-chunk-37-1.png" width="100%" />
+<img src="localUncertainty_files/figure-html/Local uncertianty index 2008:2011-1.png" width="100%" />
 
 ## Comparison to the world uncertainty index for Norway:
 
@@ -1235,7 +1235,7 @@ database %>% filter(index == 2000, county == "Total") %>%
   theme(axis.title = element_blank())
 ```
 
-![](localUncertainty_files/figure-html/unnamed-chunk-38-1.png)<!-- -->
+![](localUncertainty_files/figure-html/world uncertainty 2000:2007-1.png)<!-- -->
 
 
 ```r
@@ -1247,7 +1247,7 @@ database %>% filter(index == 2008, county == "Total") %>%
   theme(axis.title = element_blank())
 ```
 
-![](localUncertainty_files/figure-html/unnamed-chunk-39-1.png)<!-- -->
+![](localUncertainty_files/figure-html/world uncertainty 2008:2011-1.png)<!-- -->
 
 <script>
 $( "input.hideshow" ).each( function ( index, button ) {

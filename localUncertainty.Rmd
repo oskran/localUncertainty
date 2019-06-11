@@ -318,7 +318,7 @@ paste0(format((database %>% filter(uncertainty == 0) %>% nrow() * 100) / databas
 
 Time for some graphs. What is the total number of unique newspapers in the database over time?
 
-```{r}
+```{r Unique newspaper over time}
 # Unique newspapers
 database %>% filter(!total == 0) %>% group_by(date) %>% distinct(paper) %>% count() %>%
   ggplot(aes(date, n)) +
@@ -329,7 +329,7 @@ database %>% filter(!total == 0) %>% group_by(date) %>% distinct(paper) %>% coun
 
 And how does the number of total monthly words develop?
 
-```{r}
+```{r Total words over time}
 # Total words
 database %>% group_by(date) %>% summarise(total = sum(total)) %>%
   ggplot(aes(date, total)) +
@@ -341,7 +341,7 @@ database %>% group_by(date) %>% summarise(total = sum(total)) %>%
 ### Circulation data
 
 Total circulation per year:
-```{r}
+```{r Total circulation per year}
 coverage %>% group_by(year) %>% summarise(spread = sum(spread)) %>%
 ggplot(aes(year, spread)) +
   geom_line() +
@@ -349,7 +349,7 @@ ggplot(aes(year, spread)) +
 ```
 
 Number of unique newspapers per year.
-```{r}
+```{r Number of unique newspapers per year}
 coverage %>% group_by(year) %>% distinct(paper) %>% count() %>%
 ggplot(aes(year, n)) +
   geom_line() +
@@ -754,7 +754,7 @@ National uncertianty index 2000:2007
 
 Uncertainty events from left to right: 9/11, War in Afghanistan, WorldCom bankruptcy, Bottom of NASDAQ, second Gulf war, start of the Global Financial Crisis.
 
-```{r, out.width = "100%", dpi = 300}
+```{r National uncertianty index 2000:2007, out.width = "100%", dpi = 300}
 database %>% filter(index == 2000, county == "Total") %>%
   ggplot(aes(date, uncertaintyNorm)) +
   geom_line() +
@@ -770,7 +770,7 @@ National uncertianty index 2008:2011
 
 Uncertainty events from left to right: Collapse of Lehman Brothers, first Libyan civil war, Norway attacks, Greek proposed economy referendum.
 
-```{r,out.width = "100%", dpi = 300}
+```{r National uncertianty index 2008:2011,out.width = "100%", dpi = 300}
 database %>% filter(index == 2008, county == "Total") %>%
   ggplot(aes(date, uncertaintyNorm)) +
   geom_line() +
@@ -784,7 +784,7 @@ database %>% filter(index == 2008, county == "Total") %>%
 
 Local uncertianty index 2000:2007
 
-```{r,out.width = "100%", dpi = 300}
+```{r Local uncertianty index 2000:2007,out.width = "100%", dpi = 300}
 database %>% filter(index == 2000, !county == "Total") %>% 
   ggplot(aes(x = date, y = uncertaintyNorm)) +
   geom_line() +
@@ -797,7 +797,7 @@ database %>% filter(index == 2000, !county == "Total") %>%
 
 Local uncertianty index 2008:2011
 
-```{r, out.width = "100%", dpi = 300}
+```{r Local uncertianty index 2008:2011, out.width = "100%", dpi = 300}
 database %>% filter(index == 2008, !county == "Total") %>% 
   ggplot(aes(x = date, y = uncertaintyNorm)) +
   geom_line() +
@@ -810,7 +810,7 @@ database %>% filter(index == 2008, !county == "Total") %>%
 
 ## Comparison to the world uncertainty index for Norway:
 
-```{r}
+```{r world uncertainty 2000:2007}
 database %>% filter(index == 2000, county == "Total") %>%
   ggplot(aes(date, uncertaintyNorm)) +
   geom_line(color = "gray") +
@@ -819,7 +819,7 @@ database %>% filter(index == 2000, county == "Total") %>%
   theme(axis.title = element_blank())
 ```
 
-```{r}
+```{r world uncertainty 2008:2011}
 database %>% filter(index == 2008, county == "Total") %>%
   ggplot(aes(date, uncertaintyNorm)) +
   geom_line(color = "gray") +
