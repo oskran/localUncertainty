@@ -753,7 +753,7 @@ National uncertianty index 2000:2007
 
 Uncertainty events from left to right: 9/11, War in Afghanistan, WorldCom bankruptcy, Bottom of NASDAQ, second Gulf war, start of the Global Financial Crisis.
 
-```{r National uncertianty index 2000:2007, out.width = "100%", dpi = 300}
+```{r national_uncertianty_index_2000_2007, out.width = "100%", dpi = 300}
 database %>% filter(index == 2000, county == "Total") %>%
   ggplot(aes(date, uncertaintyNorm)) +
   geom_line() +
@@ -769,7 +769,7 @@ National uncertianty index 2008:2011
 
 Uncertainty events from left to right: Collapse of Lehman Brothers, first Libyan civil war, Norway attacks, Greek proposed economy referendum.
 
-```{r National uncertianty index 2008:2011,out.width = "100%", dpi = 300}
+```{r national_uncertianty_index_2008_2011, out.width = "100%", dpi = 300}
 database %>% filter(index == 2008, county == "Total") %>%
   ggplot(aes(date, uncertaintyNorm)) +
   geom_line() +
@@ -783,7 +783,7 @@ database %>% filter(index == 2008, county == "Total") %>%
 
 Local uncertianty index 2000:2007
 
-```{r Local uncertianty index 2000:2007,out.width = "100%", dpi = 300}
+```{r local_uncertianty_index_2000_2007, out.width = "100%", dpi = 300}
 database %>% filter(index == 2000, !county == "Total") %>% 
   ggplot(aes(x = date, y = uncertaintyNorm)) +
   geom_line() +
@@ -796,7 +796,7 @@ database %>% filter(index == 2000, !county == "Total") %>%
 
 Local uncertianty index 2008:2011
 
-```{r Local uncertianty index 2008:2011, out.width = "100%", dpi = 300}
+```{r local_uncertianty_2008_2011, out.width = "100%", dpi = 300}
 database %>% filter(index == 2008, !county == "Total") %>% 
   ggplot(aes(x = date, y = uncertaintyNorm)) +
   geom_line() +
@@ -809,7 +809,7 @@ database %>% filter(index == 2008, !county == "Total") %>%
 
 ## Comparison to the world uncertainty index for Norway:
 
-```{r world uncertainty 2000:2007}
+```{r world uncertainty2000_2007}
 database %>% filter(index == 2000, county == "Total") %>%
   ggplot(aes(date, uncertaintyNorm)) +
   geom_line(color = "gray") +
@@ -818,7 +818,7 @@ database %>% filter(index == 2000, county == "Total") %>%
   theme(axis.title = element_blank())
 ```
 
-```{r world uncertainty 2008:2011}
+```{r world uncertainty2008_2011}
 database %>% filter(index == 2008, county == "Total") %>%
   ggplot(aes(date, uncertaintyNorm)) +
   geom_line(color = "gray") +

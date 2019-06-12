@@ -1170,7 +1170,7 @@ database %>% filter(index == 2000, county == "Total") %>%
   theme(axis.title = element_blank())
 ```
 
-<img src="localUncertainty_files/figure-html/National uncertianty index 2000:2007-1.png" width="100%" />
+<img src="localUncertainty_files/figure-html/national_uncertianty_index_2000_2007-1.png" width="100%" />
 
 National uncertianty index 2008:2011
 
@@ -1188,7 +1188,7 @@ database %>% filter(index == 2008, county == "Total") %>%
   theme(axis.title = element_blank())
 ```
 
-<img src="localUncertainty_files/figure-html/National uncertianty index 2008:2011-1.png" width="100%" />
+<img src="localUncertainty_files/figure-html/national_uncertianty_index_2008_2011-1.png" width="100%" />
 
 Local uncertianty index 2000:2007
 
@@ -1204,7 +1204,7 @@ database %>% filter(index == 2000, !county == "Total") %>%
   theme(axis.title = element_blank())
 ```
 
-<img src="localUncertainty_files/figure-html/Local uncertianty index 2000:2007-1.png" width="100%" />
+<img src="localUncertainty_files/figure-html/local_uncertianty_index_2000_2007-1.png" width="100%" />
 
 Local uncertianty index 2008:2011
 
@@ -1220,7 +1220,7 @@ database %>% filter(index == 2008, !county == "Total") %>%
   theme(axis.title = element_blank())
 ```
 
-<img src="localUncertainty_files/figure-html/Local uncertianty index 2008:2011-1.png" width="100%" />
+<img src="localUncertainty_files/figure-html/local_uncertianty_2008_2011-1.png" width="100%" />
 
 ## Comparison to the world uncertainty index for Norway:
 
@@ -1234,7 +1234,7 @@ database %>% filter(index == 2000, county == "Total") %>%
   theme(axis.title = element_blank())
 ```
 
-![](localUncertainty_files/figure-html/world uncertainty 2000:2007-1.png)<!-- -->
+![](localUncertainty_files/figure-html/world uncertainty2000_2007-1.png)<!-- -->
 
 
 ```r
@@ -1246,7 +1246,7 @@ database %>% filter(index == 2008, county == "Total") %>%
   theme(axis.title = element_blank())
 ```
 
-![](localUncertainty_files/figure-html/world uncertainty 2008:2011-1.png)<!-- -->
+![](localUncertainty_files/figure-html/world uncertainty2008_2011-1.png)<!-- -->
 
 <script>
 $( "input.hideshow" ).each( function ( index, button ) {
