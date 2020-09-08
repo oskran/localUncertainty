@@ -15,9 +15,9 @@ knitr::opts_chunk$set(echo = TRUE)
 options(scipen=999)
 ```
 
-The local uncertainty indexes are made by calculating the uncertainty words per word ratio over time, and multiplying them with newspapers weights that are based on the number of papers sold in each county. That way newspapers that sell the most in each county also contribute the most to their respective uncertainty index. 
+The local uncertainty indexes are made by calculating the uncertainty words per word ratio over time and multiplying them with newspapers weights that are based on the number of papers sold in each county. That way, newspapers that sell the most in each county also contribute the most to their respective uncertainty index. 
 
-To get the best data coverage possible I decided to only use data from the year 2000 and onwards.
+To get the best data coverage possible, I decided only to use data from the year 2000 and onward.
 
 ### Load packages
 
@@ -31,9 +31,8 @@ library(pxweb) # Statistics Norway API
 library(zoo) # Linear approximation
 ```
 
-
 ## Norwegian national library
-The Norwegian national library is digitizing its newspaper collection. This is an ongoing process, which means that a lot of data is still missing. Still, there is partial data from 400 newspapers from 1763 until today.
+The Norwegian national library is digitizing its newspaper collection. This process is ongoing, which means that much data is still missing. Still, there is partial data from 400 newspapers from 1763 until today.
 
 ### Wildcard search
 A wildcard search is a search that matches every string that starts with any of the strings provided. I do a wildcard search in the database using the Norwegian words for _uncertainty_. 
@@ -148,7 +147,7 @@ Cleaning the national library data consists of three main steps:
 
 1. Remove non-Norwegian language newspapers.
 2. Remove newspapers with only one observation.
-3. Combine newspaper series. Several newspapers are registrered under more that one name in the database. (e.g Dagsavisen and Arbeiderbladet). I decided to merge these manually.
+3. Combine newspaper series. Several newspapers are registered under more that one name in the database. (e.g. Dagsavisen and Arbeiderbladet). I decided to merge these manually.
 
 ```{r}
 database <- readRDS("data/monthlyData.rds")
@@ -226,7 +225,7 @@ database <- inner_join(database, dateDf)
 ```
 
 ## Norwegian Media Businesses' Association
-The second main dataset is circulation data from the Norwegian Media Businesses' Association (NMBA). It contains the number of newspapers sold in each municipality of Norway. NMBA represents more that 97 percent of the total circulation of Norwegian newspapers.The data is downloaded from http://www.aviskatalogen.no/jsf/report/index.jsf
+The second primary dataset is circulation data from the Norwegian Media Businesses' Association (NMBA). It contains the number of newspapers sold in each municipality of Norway. NMBA represents more than 97 percent of the total circulation of Norwegian newspapers. The data is downloaded from http://www.aviskatalogen.no/jsf/report/index.jsf
 
 ### Data cleaning
 Cleaning the circulation data consists of substituting Dano-Norwegian letters with _ae_, _o_, or _aa_, in addition to some other light string manipulation.
@@ -295,7 +294,7 @@ Which newspaper/month has the most uncertainty words?
 ```{r}
 database %>% arrange(desc(uncertainty)) %>% head(n = 5)
 ```
-Not suprisingly the time after 9/11 is at the top
+Not surprisingly, the time after 9/11 is at the top
 
 Which paper/month has the most uncertainty words per words?
 ```{r}
@@ -356,7 +355,7 @@ ggplot(aes(year, n)) +
 ```
 
 ## Match newspaper names using string distance
-The newspaper names used in the two databases are often spelled a bit different. First I match the ones that have the excact same name. Then, I use several string distance measurements to match the rest. String distance metrics are ways to compare the similarity of two strings. They can for instance be the "minimum number of single-character edits needed to change one word into the other" (Levenshtein distance), or "1 minus the size of the intersection divided by the size of the union of the sample sets" (Jaccard distance). It is a bit messy, but it seems like the best way. Some newspapers also have to be manually matched at the end.
+The newspaper names used in the two databases are often spelled a bit different. First, I match the ones that have the exact same name. Then, I use several string distance measurements to match the rest. String distance metrics are ways to compare the similarity of two strings. They can, for instance, be the "minimum number of single-character edits needed to change one word into the other" (Levenshtein distance), or "1 minus the size of the intersection divided by the size of the union of the sample sets" (Jaccard distance). It is a bit messy, but it seems like the best way. Some newspapers also have to be manually matched at the end.
 
 ```{r, message = FALSE}
 # Match papers that have the exact same name.
@@ -441,7 +440,6 @@ Subset only the matched newspapers:
 ```{r, message=FALSE}
 coverage <- matchedPapers %>% rename(paper = s1name) %>% left_join(coverage) %>% select(-s2name)
 database <- matchedPapers %>% rename(paper = s2name) %>% left_join(database) %>% select(-paper) %>% rename(paper = s1name)
-
 ```
 
 ### Add counties
@@ -588,7 +586,7 @@ Divide the number of uncertainty words by the total number of words to get __unc
 ```{r}
 database$uncertaintyPerWord <- database$uncertainty / database$total
 
-# Standarize each weighted newspaper-level series to unit standard deviation
+# Standardize each weighted newspaper-level series to unit standard deviation
 database <- database %>% group_by(paper, county, index) %>% mutate(stdr = sd(uncertaintyPerWord, na.rm = T)) %>% ungroup()
 
 database <- database %>% group_by(paper, county, index) %>% mutate(uncertaintySt = uncertaintyPerWord / stdr) %>% ungroup() #Uncertainty per word divided by sd
