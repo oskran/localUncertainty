@@ -1,0 +1,33 @@
+<style>
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+</style>
+
+<h1>Local uncertainty indexes for Norwegian counties</h1>
+
+<hr>
+
+<p><a href="localUncertainty.html">Guide to creating the indexes</a></p>
+<p><a href="Recipe.pdf">Short summary of calculations</a></p>
+<p>This project seeks to estimate local uncertainty in Norway using textual news data,
+ and stems from my master thesis at the university of Oslo.
+  It is inspired by the 
+	
+	
+	<a href="http://www.policyuncertainty.com/index.html">Economic Policy Uncertainty Index</a> and the 
+	
+	
+	<a href="https://www.retriever-info.com/fni/">Financial News Index</a>, in addition to several papers by 
+	
+	
+	<a href="https://www.bi.edu/about-bi/employees/department-of-economics/vegard-hoghaug-larsen/">Vegard H. Larsen</a> and 
+	
+	<a href="https://www.bi.edu/about-bi/employees/department-of-economics/leif-anders-thorsrud">Leif Anders Thorsrud</a>.
+
+
+</p>
+<p>I use the national library of Norway's API to collect data about the use of uncertainty words over time. Because of limitations to the API, this project uses monthly word counts for each paper, compared to the full newspaper database used in my thesis.</p>
+<img src="localUncertainty_files/figure-html/local_uncertianty_index_2000_2007-1.png" alt="Local uncertainty 2000:2007">
+<img src="localUncertainty_files/figure-html/local_uncertianty_2008_2011-1.png" alt="Local uncertainty 2008:2011">
